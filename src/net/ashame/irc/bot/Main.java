@@ -205,8 +205,10 @@ public class Main {
         try {
             FileInputStream in = new FileInputStream("settings.properties");
             properties.load(in);
-            twitch_oauth = properties.getProperty("API_KEY");
+            twitch_oauth = properties.getProperty("TWITCH_OAUTH");
+            System.out.println(twitch_oauth);
             nickserv_pw= properties.getProperty("NICKSERV_PW");
+            System.out.println(nickserv_pw);
             in.close();
         } catch (FileNotFoundException e) {
             System.out.println("Settings file not found; creating new default file.");
