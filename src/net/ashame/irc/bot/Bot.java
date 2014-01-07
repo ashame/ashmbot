@@ -70,8 +70,9 @@ public class Bot extends PircBot {
     }
 
     public void onKick(String channel, String kickerNick, String kickerLogin, String kickerHostname, String recipientNick, String reason) {
-        if (isConnected()) {
+        if (isConnected() && recipientNick.equalsIgnoreCase(getNick())) {
             sendRawLine("JOIN " + channel);
+            sendMessage(channel, "fak u " + kickerNick);
         }
     }
 

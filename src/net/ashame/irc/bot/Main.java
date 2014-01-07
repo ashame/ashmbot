@@ -70,12 +70,6 @@ public class Main {
         final JTabbedPane tabbedPane = new JTabbedPane();
         final JScrollPane scrollPane = new JScrollPane();
 
-        final JButton buttons[] = new JButton[]{
-                new JButton("Join Server!"),
-                new JButton("Join Server!"),
-                new JButton("Join Server!")
-        };
-
         final JTextField textFields[] = new JTextField[]{
                 new JTextField(60),
                 new JTextField(60),
@@ -103,8 +97,6 @@ public class Main {
 
         for (int i = 0; i < panels.length; i++) {
             panels[i].add(textFields[i]);
-            panels[i].add(Box.createHorizontalGlue());
-            panels[i].add(buttons[i]);
         }
 
         scrollPane.setViewportView(textAreas[0]);
@@ -120,26 +112,17 @@ public class Main {
                 int i = tabbedPane.getSelectedIndex();
                 scrollPane.setViewportView(textAreas[i]);
                 textAreas[i].scrollRectToVisible(new Rectangle(0, textAreas[i].getHeight(), 0, 0));
+                if (!bots[i].isConnected()) {
+                    try {
+                        textAreas[i].setText("");
+                        connect(i);
+                    } catch (Exception ignored) {
+                    }
+                }
             }
         });
 
-        for (JButton joinButton : buttons) {
-            joinButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    try {
-                        int i = tabbedPane.getSelectedIndex();
-                        if (!bots[i].isConnected()) {
-                            connect(i);
-                        } else {
-                            JOptionPane.showMessageDialog(frame, "You are already connected to the server!", "Error", JOptionPane.ERROR_MESSAGE);
-                        }
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            });
-        }
+        tabbedPane.setSelectedIndex(0);
 
         for (final JTextField textField : textFields) {
             textField.addKeyListener(new KeyListener() {
@@ -155,7 +138,10 @@ public class Main {
                             bots[i].sendRawLine(textField.getText());
                             textField.setText("");
                         } else {
-                            JOptionPane.showMessageDialog(frame, "You aren't connected to the server! Hit join before entering commands!", "Error", JOptionPane.ERROR_MESSAGE);
+                            try {
+                                textAreas[i].setText("");
+                                connect(i);
+                            } catch (Exception ignored) {}
                         }
                     }
                 }
@@ -173,6 +159,7 @@ public class Main {
         frame.pack();
         frame.setVisible(true);
         frame.setResizable(false);
+        connect(tabbedPane.getSelectedIndex());
     }
 
     public static void log(String s, int id) {

@@ -145,33 +145,43 @@ public class CommandProcessor {
                 String region = "";
                 String name = "";
                 int summonerId = 0;
+                int level = 0;
                 switch (sub.length) {
-                    case 2:
-                        summonerId = getSummonerId("NA", URLEncoder.encode(sub[1], "UTF-8"));
-                        name = URLEncoder.encode(sub[1], "UTF-8");
-                        region = "NA";
-                        break;
-                    case 3:
-                        summonerId = getSummonerId(sub[2], URLEncoder.encode(sub[1], "UTF-8"));
-                        region = sub[2];
-                        name = URLEncoder.encode(sub[1], "UTF-8");
-                        break;
-                    default:
+                    case 1:
                         summonerId = getSummonerId("NA", "Ashame");
                         region = "NA";
                         name = "Ashame";
                         break;
+                    default:
+                        if (sub[sub.length-1].equalsIgnoreCase("na") || sub[sub.length-1].equalsIgnoreCase("euw") || sub[sub.length-1].equalsIgnoreCase("eune")) {
+                            region = sub[sub.length-1].toLowerCase();
+                            StringBuilder sb = new StringBuilder();
+                            for (int i = 0; i < sub.length - 2; i++) {
+                                sb.append(sub[i+1]);
+                            }
+                            name = sb.toString().toLowerCase().replaceAll("\\s", "");
+                        } else {
+                            StringBuilder sb = new StringBuilder();
+                            region = "na";
+                            for (int i = 0; i < sub.length - 1; i++) {
+                                sb.append(sub[i+1]);
+                            }
+                            name = sb.toString().toLowerCase().replaceAll("\\s", "");
+                        }
+                        summonerId = getSummonerId(region, name);
+                        break;
                 }
 
-                int level = 0;
                 JsonObject profile = null;
 
-                if (Main.summonerCache.get(name) != null) {
-                    JsonObject summonerCache = JsonObject.readFrom(Main.summonerCache.get(name));
-                    JsonObject nestedCache = JsonObject.readFrom(summonerCache.get(region.toLowerCase()).asString());
-                    bot.log("Reading nested cache: " + nestedCache);
-                    level = nestedCache.get("level").asInt();
-                    name = URLDecoder.decode(nestedCache.get("name").asString(), "UTF-8");
+                if (Main.summonerCache.get(URLEncoder.encode(name.toLowerCase(), "UTF-8")) != null) {
+                    JsonObject summonerCache = JsonObject.readFrom(Main.summonerCache.get(URLEncoder.encode(name.toLowerCase(), "UTF-8")));
+                    if (summonerCache.get(region.toLowerCase()) != null) {
+                        JsonObject nestedCache = JsonObject.readFrom(summonerCache.get(region.toLowerCase()).asString());
+                        bot.log("Reading nested cache: " + nestedCache);
+                        level = nestedCache.get("level").asInt();
+                        name = URLDecoder.decode(nestedCache.get("name").asString(), "UTF-8");
+                    }
                 }
 
                 if (level < 30 || summonerId == 0) {
@@ -179,10 +189,10 @@ public class CommandProcessor {
                     level = basicProfile.get("summonerLevel").asInt();
                     name = basicProfile.get("name").asString();
                     summonerId = basicProfile.get("id").asInt();
-                    saveToCache(name.replaceAll("\\s",""), region.toLowerCase(), summonerId, name.replaceAll("\\s",""), level);
+                    saveToCache(name.replaceAll("\\s",""), region.toLowerCase(), summonerId, name, level);
                 }
 
-                bot.sendMessage(channel, "Statistics for " + name + ", Level " + level + " (http://lolking.net/summoner/"+region.toLowerCase()+"/"+summonerId+")");
+                bot.sendMessage(channel, "Statistics for " + name + " (" + region.toUpperCase() + "), Level " + level + " (http://lolking.net/summoner/"+region.toLowerCase()+"/"+summonerId+")");
                 if (level == 30)
                     profile = getLeagueProfile(region, summonerId);
                 if (profile != null) {
@@ -238,6 +248,14 @@ public class CommandProcessor {
                     bot.sendMessage(channel, sender.getNick() + " has survived the roulette.");
             } else if (sub[0].equalsIgnoreCase("queries")) {
                 bot.sendMessage(channel, "Number of queries to Riot's API this session: " + Main.apiQueries);
+            } else if (sub[0].equalsIgnoreCase("printcache") && hasPowers(sender)) {
+                String cached = Main.summonerCache.toString().replaceAll("\\\\", "");
+                String[] cache = cached.split("},");
+                bot.sendMessage(channel, "Summoner Cache: ");
+                for (String s : cache) {
+                    bot.sendMessage(channel, s);
+                }
+                bot.log(cached);
             } else {
                 bot.log(sender.getNick() + " tried to issue command " + heading + sub[0]);
             }
@@ -314,8 +332,8 @@ public class CommandProcessor {
     public int getSummonerId(final String region, final String summoner) throws Exception {
         int summonerId = 0;
         JsonObject jsonObject;
-        if (Main.summonerCache.get(summoner) != null) {
-            jsonObject = JsonObject.readFrom(Main.summonerCache.get(summoner));
+        if (Main.summonerCache.get(URLEncoder.encode(summoner.toLowerCase(), "UTF-8")) != null) {
+            jsonObject = JsonObject.readFrom(Main.summonerCache.get(URLEncoder.encode(summoner.toLowerCase(), "UTF-8")));
             if (jsonObject.get(region.toLowerCase()) != null) {
                 JsonObject nested = JsonObject.readFrom(jsonObject.get(region.toLowerCase()).asString());
                 bot.log("Reading summoner ID from cache: " + nested.get("id").asInt());
