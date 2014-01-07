@@ -182,7 +182,7 @@ public class CommandProcessor {
                     saveToCache(name.replaceAll("\\s",""), region.toLowerCase(), summonerId, name.replaceAll("\\s",""), level);
                 }
 
-                bot.sendMessage(channel, "Statistics for " + name + ", Level " + level);
+                bot.sendMessage(channel, "Statistics for " + name + ", Level " + level + " (http://lolking.net/summoner/"+region.toLowerCase()+"/"+summonerId+")");
                 if (level == 30)
                     profile = getLeagueProfile(region, summonerId);
                 if (profile != null) {
