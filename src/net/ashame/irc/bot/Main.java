@@ -4,8 +4,6 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.*;
@@ -28,8 +26,11 @@ public class Main {
     public static Map<String, String> summonerCache = new LinkedHashMap<>();
     public static int apiQueries = 0;
 
+    public static String riot_api_key = "";
+    public static String pastebin_api_key = "";
     private static String twitch_oauth = "";
-    private static String nickserv_pw = "";
+    private static String nickserv_pw_rizon = "";
+    private static String nickserv_pw_animebytes = "";
 
     private static Bot bots[] = new Bot[]{
             new Bot(0),
@@ -176,11 +177,11 @@ public class Main {
                 break;
             case 1:
                 bots[id].connect("irc.rizon.net", 6667);
-                bots[id].sendMessage("nickserv", "identify " + nickserv_pw);
+                bots[id].sendMessage("nickserv", "identify " + nickserv_pw_rizon);
                 break;
             case 2:
                 bots[id].connect("irc.animebytes.tv", 6667);
-                bots[id].sendMessage("nickserv", "identify " + nickserv_pw);
+                bots[id].sendMessage("nickserv", "identify " + nickserv_pw_animebytes);
                 break;
             default:
                 break;
@@ -192,20 +193,23 @@ public class Main {
         try {
             FileInputStream in = new FileInputStream("settings.properties");
             properties.load(in);
-            twitch_oauth = properties.getProperty("TWITCH_OAUTH");
-            System.out.println(twitch_oauth);
-            nickserv_pw= properties.getProperty("NICKSERV_PW");
-            System.out.println(nickserv_pw);
+            riot_api_key = properties.getProperty("riot_api_key");
+            twitch_oauth = properties.getProperty("twitch_oauth");
+            pastebin_api_key = properties.getProperty("pastebin_api_key");
+            nickserv_pw_rizon = properties.getProperty("nickserv_pw_rizon");
+            nickserv_pw_animebytes = properties.getProperty("nickserv_pw_animebytes");
             in.close();
         } catch (FileNotFoundException e) {
             System.out.println("Settings file not found; creating new default file.");
             try {
                 Properties prop = new Properties();
                 OutputStream out = new FileOutputStream(new File("settings.properties"));
-                prop.put("API_KEY", "replace_with_api_key");
-                prop.put("TWITCH_OAUTH", "oauth:");
-                prop.put("NICKSERV_PW", "password");
-                prop.store(out, "Authentication Info");
+                prop.put("riot_api_key", "");
+                prop.put("twitch_oauth", "");
+                prop.put("pastebin_api_key", "");
+                prop.put("nickserv_pw_rizon", "");
+                prop.put("nickserv_pw_animebytes", "");
+                prop.store(out, "Settings for ashmbot");
                 out.flush();
                 out.close();
             } catch (Exception ex) {

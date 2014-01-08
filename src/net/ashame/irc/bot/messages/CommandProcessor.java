@@ -7,10 +7,7 @@ import net.ashame.irc.bot.Main;
 import org.jibble.pircbot.User;
 
 import java.io.*;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
+import java.net.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -25,6 +22,7 @@ public class CommandProcessor {
     protected final Bot bot;
     protected final Map<String, String> commands = new LinkedHashMap<>();
     protected final SimpleDateFormat TIME_FORMAT = new SimpleDateFormat("hh:mm:ss a z");
+    protected long lastUse;
 
     public CommandProcessor(final Bot bot) {
         this.bot = bot;
@@ -134,14 +132,18 @@ public class CommandProcessor {
                     sb.append("None.");
                 }
                 bot.sendMessage(channel, sb.toString());
-            } else if (sub[0].equalsIgnoreCase("join") && isSysop(sender)) {
+            } else if (sub[0].equalsIgnoreCase("join") && isSysop(sender.getNick())) {
                 if (sub.length == 1) {
                     return;
                 }
                 bot.joinChannel(sub[1]);
-            } else if (sub[0].equalsIgnoreCase("leave") && isSysop(sender)) {
+            } else if (sub[0].equalsIgnoreCase("leave") && isSysop(sender.getNick())) {
                 bot.sendRawLine("PART " + channel);
             } else if (sub[0].equalsIgnoreCase("profile") || sub[0].equalsIgnoreCase("rank") || sub[0].equalsIgnoreCase("lookup") || sub[0].equalsIgnoreCase("stats")) {
+                if (System.currentTimeMillis() - lastUse < 7000) {
+                    bot.sendMessage(channel, "This command can only be used once every 7 seconds.");
+                    return;
+                }
                 String region = "";
                 String name = "";
                 int summonerId = 0;
@@ -237,6 +239,7 @@ public class CommandProcessor {
                     }
                 }
                 bot.sendMessage(channel, "Normal wins: " + wins + ", Turrets destroyed: " + turretsKilled + ", Champions killed: " + championKills + ", Total assists: " + assists + ", Total minions killed: " + totalMinionKills + ", Neutral monsters killed: " + neutralMinionsKilled);
+                lastUse = System.currentTimeMillis();
             } else if (sub[0].equalsIgnoreCase("greet") && hasPowers(sender)) {
                 bot.setGreet(!bot.getGreet());
                 bot.sendMessage(channel, "I will " + (bot.getGreet() ? "now greet people on joining" : "no longer message people on joining"));
@@ -250,12 +253,7 @@ public class CommandProcessor {
                 bot.sendMessage(channel, "Number of queries to Riot's API this session: " + Main.apiQueries);
             } else if (sub[0].equalsIgnoreCase("printcache") && hasPowers(sender)) {
                 String cached = Main.summonerCache.toString().replaceAll("\\\\", "");
-                String[] cache = cached.split("},");
-                bot.sendMessage(channel, "Summoner Cache: ");
-                for (String s : cache) {
-                    bot.sendMessage(channel, s);
-                }
-                bot.log(cached);
+                bot.sendMessage(channel, "Cache: " + uploadPastebin(cached));
             } else {
                 bot.log(sender.getNick() + " tried to issue command " + heading + sub[0]);
             }
@@ -318,11 +316,7 @@ public class CommandProcessor {
     }
 
     public boolean hasPowers(final User u) {
-        return u.isOp() || u.hasVoice() || u.getNick().equalsIgnoreCase("ashame__") || u.getNick().equalsIgnoreCase("_nathan") || u.getNick().equalsIgnoreCase("ashame");
-    }
-
-    public boolean isSysop(final User u) {
-        return (u.getNick().equalsIgnoreCase("ashame__") && bot.getServer().equalsIgnoreCase("irc.twitch.tv")) || (u.getNick().equalsIgnoreCase("_nathan") && bot.getServer().equalsIgnoreCase("irc.rizon.net")) || (u.getNick().equalsIgnoreCase("ashame") && bot.getServer().equalsIgnoreCase("irc.animebytes.tv"));
+        return u.isOp() || u.hasVoice() || isSysop(u.getNick());
     }
 
     public boolean isSysop(final String nick) {
@@ -346,14 +340,24 @@ public class CommandProcessor {
     public JsonObject getBasicProfile(final String region, final String summonerName) {
         JsonObject basicProfile = null;
         try {
-            URL url = new URL("https://prod.api.pvp.net/api/lol/" + region.toLowerCase() + "/v1.2/summoner/by-name/" + summonerName + "?api_key=" + bot.API_KEY);
+            URL url = new URL("https://prod.api.pvp.net/api/lol/" + region.toLowerCase() + "/v1.2/summoner/by-name/" + summonerName + "?api_key=" + Main.riot_api_key);
             URLConnection urlConnection = url.openConnection();
             BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
             basicProfile = JsonObject.readFrom(reader.readLine());
             reader.close();
             Main.apiQueries++;
         } catch (Exception e) {
-            e.printStackTrace();
+            bot.log("Fetching from API failed. Trying decoded url:");
+            try {
+                URL url = new URL("https://prod.api.pvp.net/api/lol/" + region.toLowerCase() + "/v1.2/summoner/by-name/" + URLDecoder.decode(summonerName, "UTF-8") + "?api_key=" + Main.riot_api_key);
+                URLConnection urlConnection = url.openConnection();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+                basicProfile = JsonObject.readFrom(reader.readLine());
+                reader.close();
+                Main.apiQueries++;
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         }
         return basicProfile;
     }
@@ -361,7 +365,7 @@ public class CommandProcessor {
     public JsonObject getLeagueProfile(final String region, final int summonerId) {
         JsonObject profile = null;
         try {
-            URL u = new URL("https://prod.api.pvp.net/api/lol/" + region.toLowerCase() + "/v2.2/league/by-summoner/" + summonerId + "?api_key=" + bot.API_KEY);
+            URL u = new URL("https://prod.api.pvp.net/api/lol/" + region.toLowerCase() + "/v2.2/league/by-summoner/" + summonerId + "?api_key=" + Main.riot_api_key);
             URLConnection urlConnection = u.openConnection();
             BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
             StringBuilder sb = new StringBuilder();
@@ -382,7 +386,7 @@ public class CommandProcessor {
     public JsonObject getStats(final String region, final int summonerId) {
         JsonObject stats = null;
         try {
-            URL url = new URL("https://prod.api.pvp.net/api/lol/" + region.toLowerCase() + "/v1.2/stats/by-summoner/" + summonerId + "/summary" + "?api_key=" + bot.API_KEY);
+            URL url = new URL("https://prod.api.pvp.net/api/lol/" + region.toLowerCase() + "/v1.2/stats/by-summoner/" + summonerId + "/summary" + "?api_key=" + Main.riot_api_key);
             URLConnection urlConnection = url.openConnection();
             BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
             StringBuilder sb = new StringBuilder();
@@ -432,5 +436,32 @@ public class CommandProcessor {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public String uploadPastebin(final String text) {
+        String newUrl = "";
+        try {
+            String host = "http://pastebin.com/api/api_post.php";
+            URL url = new URL(host);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("POST");
+            con.setRequestProperty("User-Agent", "Mozilla/5.0");
+            con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+
+            String parameters = "api_option=paste&api_dev_key=" + Main.pastebin_api_key + "&api_paste_code=" + URLEncoder.encode(text, "UTF-8") + "&api_paste_name=api+cache&api_paste_format=java";
+
+            con.setDoOutput(true);
+            DataOutputStream out = new DataOutputStream(con.getOutputStream());
+            out.writeBytes(parameters);
+            out.flush();
+            out.close();
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            newUrl = reader.readLine();
+            reader.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return newUrl;
     }
 }

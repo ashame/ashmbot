@@ -17,7 +17,6 @@ public class Bot extends PircBot {
 
     protected final CommandProcessor commandProcessor;
     public Map<String, String> ignoreList = new LinkedHashMap<>();
-    public final String API_KEY;
     public boolean greet = false;
     private final int id;
 
@@ -37,19 +36,6 @@ public class Bot extends PircBot {
         this.setName(name);
         this.commandProcessor = new CommandProcessor(this);
         this.id = id;
-        String key = "";
-
-        Properties props = new Properties();
-        try {
-            FileInputStream in = new FileInputStream("settings.properties");
-            props.load(in);
-            key = props.getProperty("API_KEY");
-            in.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        this.API_KEY = key;
     }
 
     public void onMessage(final String channel, final String sender, final String login, final String hostname, final String message) {
@@ -61,9 +47,6 @@ public class Bot extends PircBot {
             String[] sp = message.split(" ");
             sp[0] = sp[0].toLowerCase().substring(1);
             commandProcessor.processCommand(heading, sp, channel, getUser(channel, sender));
-        }
-        if (message.contains("The moderators of this room are")) {
-            System.out.println("True");
         }
         if (message.contains("hi ashmbot"))
             sendMessage(channel, "hi " + sender);
